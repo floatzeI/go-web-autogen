@@ -72,7 +72,7 @@ func main() {
 		var httpMethod = decoratorparser.ParseMethod(functionCalls)
 		var stringHttpMethod = decoratorparser.StringifyMethod(httpMethod)
 		autogenComments = append(autogenComments, stringHttpMethod.Comment)
-		var possibleResponses = decoratorparser.ParseResponse(comments)
+		var possibleResponses = decoratorparser.ParseResponse(functionCalls)
 
 		var hasSuccess = false
 		for _, resp := range possibleResponses {
