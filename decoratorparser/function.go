@@ -40,9 +40,9 @@ func (f *FunctionsResponse) GetCallsByName(name string) []FunctionEntry {
 }
 
 // GetFunctions will return a list of functions from the comment text
-func GetFunctions(comments string) FunctionsResponse {
+func (p *DecoratorParser) GetFunctions() FunctionsResponse {
 	result := make([]FunctionEntry, 0)
-	var split = strings.Split(strings.ReplaceAll(comments, "\r", ""), "\n")
+	var split = strings.Split(strings.ReplaceAll(p.comments, "\r", ""), "\n")
 	groups := make([][]string, 0)
 	for _, item := range split {
 		var localGroups = parserRegex.FindAllStringSubmatch(item, -1)
@@ -56,7 +56,6 @@ func GetFunctions(comments string) FunctionsResponse {
 		if function[2] != "()" {
 			arguments = strings.Split(function[3], ",")
 		}
-		fmt.Println("args", arguments)
 		for idx := range arguments {
 			arguments[idx] = utils.StringTrimmer(arguments[idx])
 		}

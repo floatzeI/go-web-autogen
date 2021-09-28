@@ -8,8 +8,9 @@ import (
 func TestParseResponse(t *testing.T) {
 	comments := `@HttpGet("/api/example")
 @Response(400, "Invalid Request", "Models.Error")`
-	var functionCalls = decoratorparser.GetFunctions(comments)
-	result := decoratorparser.ParseResponse(functionCalls)
+	var parser = decoratorparser.New(comments, "Test", "Test")
+	parser.GetFunctions()
+	result := parser.ParseResponse()
 	if len(result) != 1 {
 		t.Error("Expected len=1, got len=", len(result))
 	}

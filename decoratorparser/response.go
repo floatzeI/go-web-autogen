@@ -13,9 +13,9 @@ type ResponseEntry struct {
 }
 
 // ParseResponse parses all of the comments for the function, and returns a slice of response entries (if there are any)
-func ParseResponse(calls FunctionsResponse) []ResponseEntry {
+func (p *DecoratorParser) ParseResponse() []ResponseEntry {
 	resp := make([]ResponseEntry, 0)
-	var possibleResponses = calls.GetCallsByName("Response")
+	var possibleResponses = p.functions.GetCallsByName("Response")
 	for _, entry := range possibleResponses {
 		params := entry.Arguments
 		if len(entry.Arguments) < 1 {

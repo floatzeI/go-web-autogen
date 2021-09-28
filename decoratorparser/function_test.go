@@ -9,7 +9,7 @@ func TestFunction(t *testing.T) {
 	// parse correct
 	comments := `@FunctionCallOne("string", "otherString", true, 123)
 @FunctionCallNoArgs()`
-	result := decoratorparser.GetFunctions(comments)
+	result := decoratorparser.New(comments, "test", "test").GetFunctions()
 	if len(result.FunctionCalls) != 2 {
 		t.Error("Bad functioncalls len=", len(result.FunctionCalls))
 	}

@@ -1,21 +1,22 @@
 package decoratorparser
 
 import (
-	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"web-autogen/utils"
 )
 
 type HttpMethod struct {
-	HttpMethod string
-	Url        string
+	HttpMethod         string
+	Url                string
+	IsControllerAction bool
 }
 
 var httpMethodRegex = regexp.MustCompile("Http(Get|Post|Patch|Delete|Put|Options|Head)")
 
-func ParseMethod(functions FunctionsResponse) HttpMethod {
-	for _, f := range functions.FunctionCalls {
+func (p *DecoratorParser) ParseMethod() HttpMethod {
+	for _, f := range p.functions.FunctionCalls {
 		var result = httpMethodRegex.FindAllStringSubmatch(f.Name, -1)
 		if len(result) == 0 {
 			continue
@@ -24,11 +25,15 @@ func ParseMethod(functions FunctionsResponse) HttpMethod {
 		url := f.Arguments[0]
 		url = utils.StringTrimmer(url)
 		return HttpMethod{
-			HttpMethod: method,
-			Url:        url,
+			IsControllerAction: true,
+			HttpMethod:         method,
+			Url:                url,
 		}
 	}
-	panic(errors.New("no HTTP Method found"))
+	fmt.Println("[warning] no HTTP Method found for " + p.controller + "." + p.controllerAction)
+	return HttpMethod{
+		IsControllerAction: false,
+	}
 }
 
 type StringifyMethodResponse struct {

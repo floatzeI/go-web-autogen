@@ -10,7 +10,8 @@ func TestParseMethod(t *testing.T) {
 	var expectedOutputMethod = "Get"
 	var expectedOutputUrl = "/api/v1/testing"
 
-	var result = decoratorparser.ParseMethod(decoratorparser.GetFunctions(txt))
+	var p = decoratorparser.New(txt, "Test", "Test")
+	var result = p.ParseMethod()
 	if result.HttpMethod != expectedOutputMethod {
 		t.Error("Method does not match: ", expectedOutputMethod, "!=", result.HttpMethod)
 	}
