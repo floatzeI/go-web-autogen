@@ -7,6 +7,29 @@
         "version": "1.0"
     },
     "paths": {
+        "/api/v1/items/{itemId}/info": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "The itemId",
+                        "name": "itemId",
+                        "in": "path"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/items.ItemEntry"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/users/username": {
             "get": {
                 "produces": [
@@ -24,7 +47,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/usersmodels.GetUserById"
+                            "$ref": "#/definitions/users.GetUserById"
                         }
                     }
                 }
@@ -40,14 +63,21 @@
                         "type": "integer",
                         "description": "The userId",
                         "name": "userId",
-                        "in": "path"
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/usersmodels.GetUserById"
+                            "$ref": "#/definitions/users.GetUserById"
+                        }
+                    },
+                    "400": {
+                        "description": "InvalidUserId: UserId is invalid",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorResponse"
                         }
                     }
                 }
@@ -55,7 +85,37 @@
         }
     },
     "definitions": {
-        "usersmodels.GetUserById": {
+        "items.ItemEntry": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ErrorEntry": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/models.ErrorEntry"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "users.GetUserById": {
             "type": "object",
             "properties": {
                 "id": {

@@ -27,7 +27,7 @@ func get_apiv1itemsitemidinfo(app *fiber.App) {
 // @Produce json
 // @Router /api/v1/users/{userId}/info [get]
 // @Failure 400 {object} models.ErrorResponse "InvalidUserId: UserId is invalid"
-// @Success 200 {object} usersmodels.GetUserById
+// @Success 200 {object} users.GetUserById
 // @Param userId path int64 true "The userId"
 func get_apiv1usersuseridinfo(app *fiber.App) {
 	app.Get("/api/v1/users/{userId}/info", func(c *fiber.Ctx) error {
@@ -38,7 +38,7 @@ func get_apiv1usersuseridinfo(app *fiber.App) {
 
 // @Produce json
 // @Router /api/v1/users/username [get]
-// @Success 200 {object} usersmodels.GetUserById
+// @Success 200 {object} users.GetUserById
 // @Param username query string false "The username"
 func get_apiv1usersusername(app *fiber.App) {
 	app.Get("/api/v1/users/username", func(c *fiber.Ctx) error {

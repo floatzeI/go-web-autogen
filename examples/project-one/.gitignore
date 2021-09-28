@@ -1,2 +1,5 @@
 docs/docs.go
 docs/swagger.yaml
+#build
+*.exe
+project-one
