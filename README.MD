@@ -1,6 +1,8 @@
+**This project is not complete or finished yet.**
+
 # Go Web Autogen
 
-Extremely small and lightweight code generator for API routes and swagger. Inspired by ASP.NET
+Small and lightweight code generator for API routes and swagger documentation. Inspired by ASP.NET
 
 # Example
 
