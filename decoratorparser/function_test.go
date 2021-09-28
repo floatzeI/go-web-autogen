@@ -10,6 +10,9 @@ func TestFunction(t *testing.T) {
 	comments := `@FunctionCallOne("string", "otherString", true, 123)
 @FunctionCallNoArgs()`
 	result := decoratorparser.GetFunctions(comments)
+	if len(result.FunctionCalls) != 2 {
+		t.Error("Bad functioncalls len=", len(result.FunctionCalls))
+	}
 	var callOne decoratorparser.FunctionEntry
 	var callTwo decoratorparser.FunctionEntry
 	for _, item := range result.FunctionCalls {
@@ -38,5 +41,14 @@ func TestFunction(t *testing.T) {
 	}
 	if callOne.Arguments[3] != "123" {
 		t.Error(callOne.Arguments[0], "!=", "123")
+	}
+	// try to get a call by name
+	var firstCall = result.GetFirstCallByName("FunctionCallNoArgs")
+	if firstCall == nil {
+		t.Error("Nil firstCall")
+		return
+	}
+	if firstCall.Name != "FunctionCallNoArgs" {
+		t.Error(firstCall.Name, "!=", "FunctionCallNoArgs")
 	}
 }
