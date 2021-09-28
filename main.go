@@ -117,6 +117,7 @@ func main() {
 			if !httpMethod.IsControllerAction {
 				continue
 			}
+			httpMethod.Url = baseUrl + httpMethod.Url // add controller base url
 			var stringHttpMethod = decoratorparser.StringifyMethod(httpMethod)
 
 			var possibleResponses = parser.ParseResponse()
@@ -212,7 +213,7 @@ func main() {
 			methodCall = packageName + "." + methodCall
 			var template = strings.Join(autogenComments, "\n") + `
 func ` + functionName + `(app *fiber.App) {
-	app.` + httpMethod.HttpMethod + `("` + httpMethod.Url + `", func (c *fiber.Ctx) error {
+	app.` + httpMethod.HttpMethod + `("` + httpMethod.Url + `", func(c *fiber.Ctx) error {
 		var result = ` + methodCall + `
 		return c.JSON(result)
 	})
@@ -228,17 +229,17 @@ func ` + functionName + `(app *fiber.App) {
 		log.Fatal(autogenErr)
 	}
 	autogenFile += string(autogenBytes)
-	var regStr = ""
+	var regStr = make([]string, 0)
 	for _, str := range controllerMethods {
-		regStr += str + "(app)\n"
+		regStr = append(regStr, "    "+str+"(app)")
 	}
-	var defStr = ""
+	var defStr = make([]string, 0)
 	for _, str := range controllerMethodDefinitions {
-		defStr += str + "\n"
+		defStr = append(defStr, str)
 	}
 	// templates
-	autogenFile = strings.ReplaceAll(autogenFile, "	// [StartupRegistrations]", regStr)
-	autogenFile = strings.ReplaceAll(autogenFile, "// [FunctionRegistrations]", defStr)
+	autogenFile = strings.ReplaceAll(autogenFile, "	// [StartupRegistrations]", strings.Join(regStr, "\n"))
+	autogenFile = strings.ReplaceAll(autogenFile, "// [FunctionRegistrations]", strings.Join(defStr, "\n\n"))
 	autogenFile = strings.ReplaceAll(autogenFile, "	// [ImportRegistrations]", `	"project-one/controllers"`)
 	writeTestErr := os.WriteFile(target+"/autogen/autogen_web.go", []byte(autogenFile), 0666)
 	if writeTestErr != nil {

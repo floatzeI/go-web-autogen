@@ -1,8 +1,9 @@
 package autogen_web
 
 import (
-	"github.com/gofiber/fiber/v2"
 	// [ImportRegistrations]
+
+	"github.com/gofiber/fiber/v2"
 )
 
 type AutoGenRegister struct {
