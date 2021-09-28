@@ -1,6 +1,6 @@
-package usersmodels
+package users
 
 type GetUserById struct {
-	Id int64
+	Id       int64
 	Username string
 }

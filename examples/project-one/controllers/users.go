@@ -1,3 +1,6 @@
+// This is an example that uses the purely "functional" approach (No DI, no structs)
+// It's fine for small projects, or if you already use some DI method, or if you wan't less technical debt
+
 package controllers
 
 import usersmodels "project-one/models/users"
