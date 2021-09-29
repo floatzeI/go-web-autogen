@@ -16,3 +16,13 @@ func New(commentsText string, controller string, controllerAction string) *Decor
 	p.functions = p.GetFunctions()
 	return p
 }
+
+type JsonDecodeEntry struct {
+	Type             string
+	DecodedParamName string
+}
+
+type RequiredPackageEntry struct {
+	Name string
+	Path string
+}
