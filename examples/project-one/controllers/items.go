@@ -23,3 +23,10 @@ func NewOtherController() *OtherController {
 func (c *OtherController) GetItemById(itemId int64) items.ItemEntry {
 	return c.items.GetItemById(itemId)
 }
+
+// @HttpPost("create")
+func (c *OtherController) CreateItem(request items.CreateRequest, skipIfAlreadyExists bool) items.CreateResponse {
+	return items.CreateResponse{
+		Id: 123,
+	}
+}

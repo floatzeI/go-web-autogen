@@ -7,6 +7,38 @@
         "version": "1.0"
     },
     "paths": {
+        "/api/v1/items/create": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "description": "The request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/items.CreateRequest"
+                        }
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "The skipIfAlreadyExists",
+                        "name": "skipIfAlreadyExists",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/items.CreateResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/items/{itemId}/info": {
             "get": {
                 "produces": [
@@ -85,6 +117,22 @@
         }
     },
     "definitions": {
+        "items.CreateRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "items.CreateResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                }
+            }
+        },
         "items.ItemEntry": {
             "type": "object",
             "properties": {
