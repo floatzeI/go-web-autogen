@@ -3,3 +3,4 @@ docs/swagger.yaml
 #build
 *.exe
 project-one
+./project-one
