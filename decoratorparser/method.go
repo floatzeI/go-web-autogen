@@ -24,6 +24,8 @@ func (p *DecoratorParser) ParseMethod() HttpMethod {
 		method := result[0][1]
 		url := f.Arguments[0]
 		url = utils.StringTrimmer(url)
+		url = strings.ReplaceAll(url, "{", ":")
+		url = strings.ReplaceAll(url, "}", "")
 		return HttpMethod{
 			IsControllerAction: true,
 			HttpMethod:         method,
