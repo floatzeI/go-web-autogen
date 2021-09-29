@@ -1,7 +1,6 @@
 package decoratorparser
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 	"web-autogen/utils"
@@ -20,7 +19,6 @@ type FunctionsResponse struct {
 
 // GetFirstCallByName, or return nil if no calls exist
 func (f *FunctionsResponse) GetFirstCallByName(name string) *FunctionEntry {
-	fmt.Println(name, len(f.FunctionCalls))
 	for _, f := range f.FunctionCalls {
 		if f.Name == name {
 			return &f
