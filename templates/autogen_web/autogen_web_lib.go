@@ -34,11 +34,16 @@ func InvalidArgumentError(param string, pType string, t string) *BadRequestError
 }
 
 type ArgumentParser struct {
-	ctx           *fiber.Ctx
-	pType         string
+	// The fiber context
+	ctx *fiber.Ctx
+	// Location of the param, currently either "query" or "path"
+	pType string
+	// Name of the param
 	parameterName string
-	required      bool
-	rawValue      string
+	// If true, error when parameter is not provided
+	required bool
+	// The raw value. Can only be an empty string if required is false
+	rawValue string
 }
 
 func NewArgumentParser(ctx *fiber.Ctx, pType string, parameterName string, required bool) *ArgumentParser {
@@ -140,4 +145,34 @@ func (p *ArgumentParser) GetBool() bool {
 		panic(ArgNotProvidedError(p.parameterName, p.pType, "bool"))
 	}
 	return false
+}
+
+func (p *ArgumentParser) GetFloat64() float64 {
+	if p.rawValue == "" {
+		return 0
+	}
+	parse, parseErr := strconv.ParseFloat(p.rawValue, 64)
+
+	if parseErr != nil {
+		if p.required {
+			panic(InvalidArgumentError(p.parameterName, p.pType, "float64"))
+		}
+		return 0
+	}
+	return parse
+}
+
+func (p *ArgumentParser) GetFloat32() float32 {
+	if p.rawValue == "" {
+		return 0
+	}
+	parse, parseErr := strconv.ParseFloat(p.rawValue, 32)
+
+	if parseErr != nil {
+		if p.required {
+			panic(InvalidArgumentError(p.parameterName, p.pType, "float32"))
+		}
+		return 0
+	}
+	return float32(parse)
 }
