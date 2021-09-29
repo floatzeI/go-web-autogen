@@ -25,6 +25,8 @@ var fileHeader = `// Package autogen_web
 type GenerateOptions struct {
 	Directory         string
 	ControllersFolder string
+	// Give the packageName and importing file's path, this function should return the import path of the package.
+	ResolveModelFolder func(string, string) string
 }
 
 func Generate(options GenerateOptions) {
@@ -58,7 +60,12 @@ func Generate(options GenerateOptions) {
 		panic(e)
 	}
 	var requiredPackages = make([]decoratorparser.RequiredPackageEntry, 0)
-
+	var dependencies = runtimelib.NewDependencyResolver()
+	requiredPackages = append(requiredPackages, decoratorparser.RequiredPackageEntry{
+		Name: "services",
+		Path: moduleName + "/services",
+	})
+	dependencies.AddDependency("IItemsService", "ItemsService", "scoped", "services", "services")
 	for _, entry := range controllers {
 		targetFile := target + "controllers/" + entry.Name()
 
@@ -75,6 +82,7 @@ func Generate(options GenerateOptions) {
 		}
 		var baseUrl = ""
 		var apiControllerName = ""
+		var apiControllerConstructor *ast.FuncDecl = nil
 		var apiController *decoratorparser.FunctionEntry = nil
 		var foundConstructor = false
 		for _, f := range node.Decls {
@@ -112,7 +120,8 @@ func Generate(options GenerateOptions) {
 			}
 			if !foundConstructor && fn.Name.Name == "New"+apiControllerName {
 				foundConstructor = true
-				fmt.Println("[info] Found constructor. Name=" + fn.Name.Name)
+				fmt.Println("[info] Found a constructor for", apiControllerName, "- Name =", fn.Name.Name)
+				apiControllerConstructor = fn
 				continue
 			}
 			// todo: add di
@@ -132,54 +141,26 @@ func Generate(options GenerateOptions) {
 			}
 			httpMethod.Url = baseUrl + httpMethod.Url // add controller base url
 			var stringHttpMethod = decoratorparser.StringifyMethod(httpMethod)
-
 			var possibleResponses = parser.ParseResponse()
-
 			var hasSuccess = false
-
 			var autogenComments = make([]string, 0)
-			autogenComments = append(autogenComments, "@Produce json")
-			autogenComments = append(autogenComments, stringHttpMethod.Comment) // add method
+			autogenComments = append(autogenComments, "@Produce json") // todo: only do this if return type is a struct/slice of structs
+			autogenComments = append(autogenComments, stringHttpMethod.Comment)
 			for _, resp := range possibleResponses {
+				// todo: should ">= 300 && <= 399" be included (aka redirects)?
 				if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 					hasSuccess = true
 				}
+				// todo: handle this - some functions may return 204 (or 200 with no body)
 				if resp.Model == "" {
-					continue
+					panic("Empty return type is not implemented yet")
 				}
 				asString := decoratorparser.StringifyResponse(resp)
 				autogenComments = append(autogenComments, asString)
 			}
-			var returns decoratorparser.ReturnType
+			// If no success code is explicitly set, default to the function return type
 			if !hasSuccess {
-				var returnType = fn.Type.Results
-				if returnType == nil {
-
-				} else {
-					// return type for basic type: "int"
-					// return type for struct: "&{usersmodels GetUserById}"
-					// return type for struct slice: ""
-					switch xv := returnType.List[0].Type.(type) {
-					case *ast.ArrayType:
-						{
-							var arrayType = xv.Elt
-							var isSlice = xv.Len == nil
-							// get the type
-							var elementResult = decoratorparser.ParseReturnType(fmt.Sprintf("%v", arrayType))
-							if isSlice {
-								elementResult.Prefix = "[]"
-								returns = elementResult
-							} else {
-								// todo
-								panic("Array support is not yet implemented")
-							}
-							break
-						}
-					default:
-						var str = fmt.Sprintf("%v", returnType.List[0].Type)
-						returns = decoratorparser.ParseReturnType(str)
-					}
-				}
+				returns := ParseReturnType(fn)
 
 				var respToAdd = decoratorparser.StringifyResponse(decoratorparser.ResponseEntry{
 					StatusCode: 200,
@@ -216,9 +197,10 @@ func Generate(options GenerateOptions) {
 					if parsed.ImportedPackage != "" && parsed.Type != "" {
 						fullName := parsed.ImportedPackage + "." + parsed.Prefix + parsed.Type
 						// todo: convert ImportedPackage to a file path
+						modelPackagePath := options.ResolveModelFolder(parsed.ImportedPackage, targetFile)
 						requiredPackages = append(requiredPackages, decoratorparser.RequiredPackageEntry{
 							Name: parsed.ImportedPackage,
-							Path: moduleName + "/models/" + parsed.ImportedPackage,
+							Path: moduleName + "/" + modelPackagePath,
 						})
 						var decParamName = paramName + `_decoded`
 						toJsonDecode = append(toJsonDecode, decoratorparser.JsonDecodeEntry{
@@ -258,7 +240,16 @@ func Generate(options GenerateOptions) {
 			}
 			var methodCall = fn.Name.Name + `(` + strings.Join(parametersList, ", ") + `)`
 			if apiController != nil {
-				methodCall = "New" + apiControllerName + "()." + methodCall
+				var constructorArgs = make([]string, 0)
+				for _, param := range apiControllerConstructor.Type.Params.List {
+					var paramName = param.Names[0].Name
+					var paramType = param.Type
+					var parsedType = decoratorparser.ParseReturnType(fmt.Sprintf("%v", paramType))
+					var dep = dependencies.CreateDependencyResolverFunction(parsedType.Type)
+					constructorArgs = append(constructorArgs, dep.FunctionName+"()")
+					fmt.Println("n", paramName, paramType, parsedType)
+				}
+				methodCall = "New" + apiControllerName + "(" + strings.Join(constructorArgs, ", ") + ")." + methodCall
 			}
 			methodCall = packageName + "." + methodCall
 			var beforeMethodCall = ""
@@ -307,6 +298,27 @@ func ` + functionName + `(app *fiber.App) {
 	defStr = append(defStr, controllerMethodDefinitions...)
 	// templates
 	autogenFile = strings.ReplaceAll(autogenFile, "	// [StartupRegistrations]", strings.Join(regStr, "\n"))
+	// add deps
+	for _, item := range dependencies.GetFunctions() {
+		var createServiceCall = item.RealTypePackageName + `.New` + item.RealType + `()`
+		var fullIType = item.InterfacePackageName + "." + item.InterfaceType
+		var comment = `// ` + item.FunctionName + ` resolves the ` + item.Mode + ` ` + item.InterfaceType + ` dependency`
+		if item.Mode == "scoped" {
+			defStr = append(defStr, `
+`+comment+`
+func `+item.FunctionName+`() `+fullIType+` {
+	return `+createServiceCall+`
+}`)
+		} else {
+			var singletonVarName = `singleton` + item.RealType
+			defStr = append(defStr, `
+var `+singletonVarName+` `+fullIType+` = `+createServiceCall+`
+`+comment+`
+func `+item.FunctionName+`() `+fullIType+` {
+	return `+singletonVarName+`
+}`)
+		}
+	}
 	autogenFile = strings.ReplaceAll(autogenFile, "// [FunctionRegistrations]", strings.Join(defStr, "\n\n"))
 	requiredPackages = append(requiredPackages, decoratorparser.RequiredPackageEntry{
 		Name: "controllers",
@@ -336,4 +348,5 @@ func ` + functionName + `(app *fiber.App) {
 		log.Fatal(writeFileErr)
 	}
 	// we're done!
+	fmt.Println("[info] finished")
 }
