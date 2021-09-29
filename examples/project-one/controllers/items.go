@@ -11,7 +11,7 @@ import (
 
 // @Controller("/api/v1/items/")
 type OtherController struct {
-	items services.ItemsService
+	items services.IItemsService
 }
 
 func NewOtherController() *OtherController {

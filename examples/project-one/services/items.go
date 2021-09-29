@@ -2,10 +2,9 @@ package services
 
 import "project-one/models/items"
 
-type ItemsService struct {
-}
+type ItemsService struct{}
 
-func NewItemsService() *ItemsService {
+func NewItemsService() IItemsService {
 	return &ItemsService{}
 }
 
