@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 	"web-autogen/decoratorparser"
+	"web-autogen/runtimelib"
+
+	"golang.org/x/mod/modfile"
 )
 
 var fileHeader = `// Package autogen_web
@@ -21,12 +24,7 @@ var fileHeader = `// Package autogen_web
 
 func main() {
 	// types map
-	var typeToMethodMap = make(map[string]string)
-	typeToMethodMap["int"] = "GetInt"
-	typeToMethodMap["int64"] = "GetInt64"
-	typeToMethodMap["uint"] = "GetUint"
-	typeToMethodMap["uint64"] = "GetUint64"
-	typeToMethodMap["string"] = "GetString"
+	var typeToMethodMap = runtimelib.GetTypeToMethodMap()
 
 	var currentTime = time.Now()
 	fileHeader += "// Generated At: " + currentTime.Format(time.RFC3339) + "\n"
@@ -38,12 +36,24 @@ func main() {
 
 	// targets
 	target := "examples/project-one/"
-	controllersFolder := target + "/controllers"
+	modFileLocation := target + "go.mod"
+	modFileData, err := os.ReadFile(modFileLocation)
+	if err != nil {
+		panic(err)
+	}
+	mod, modErr := modfile.Parse(string(modFileData), modFileData, nil)
+	if modErr != nil {
+		panic(modErr)
+	}
+	moduleName := mod.Module.Mod.Path
+	controllersFolder := target + "controllers"
 	// controllers
 	controllers, e := os.ReadDir(controllersFolder)
 	if e != nil {
 		panic(e)
 	}
+	var requiredPackages = make([]decoratorparser.RequiredPackageEntry, 0)
+
 	for _, entry := range controllers {
 		targetFile := target + "controllers/" + entry.Name()
 
@@ -63,15 +73,15 @@ func main() {
 		var apiController *decoratorparser.FunctionEntry = nil
 		var foundConstructor = false
 		for _, f := range node.Decls {
+			var hasAccessToContextObject = false
 
 			fn, ok := f.(*ast.FuncDecl)
 			if !ok {
 				gen, ok := f.(*ast.GenDecl)
 				if ok {
 					for _, spec := range gen.Specs {
-						switch spec.(type) {
+						switch typeSpec := spec.(type) {
 						case *ast.TypeSpec:
-							typeSpec := spec.(*ast.TypeSpec)
 							// todo this might cause issues. see: https://github.com/golang/go/issues/27477
 							parsedComments := decoratorparser.New(gen.Doc.List[0].Text, typeSpec.Name.Name, "constructor")
 							decoratorFunctions := parsedComments.GetFunctions()
@@ -108,9 +118,7 @@ func main() {
 			var _requiredCalls = functionCalls.GetCallsByName("Required")
 			var requiredParams = make([]string, 0)
 			for _, item := range _requiredCalls {
-				for _, p := range item.Arguments {
-					requiredParams = append(requiredParams, p)
-				}
+				requiredParams = append(requiredParams, item.Arguments...)
 			}
 
 			var httpMethod = parser.ParseMethod()
@@ -174,16 +182,53 @@ func main() {
 				})
 				autogenComments = append(autogenComments, respToAdd)
 			}
+			var toJsonDecode = make([]decoratorparser.JsonDecodeEntry, 0)
 			for _, param := range fn.Type.Params.List {
-				var n = param.Names[0].Name
-				var t = param.Type
+				var paramName = param.Names[0].Name
+				var paramType = param.Type
 				// check if exists in url
-				var inUrl = strings.Contains(httpMethod.Url, "{"+n+"}")
-				typeAsString := fmt.Sprintf("%v", t)
+				var inUrl = strings.Contains(httpMethod.Url, "{"+paramName+"}")
+				typeAsString := fmt.Sprintf("%v", paramType)
 				var method = typeToMethodMap[typeAsString]
+
+				startExp, isStartExpr := paramType.(*ast.StarExpr)
+				var paramTypeAsString = "unknown"
+				if isStartExpr {
+					paramTypeAsString = fmt.Sprintf("%v", startExp.X)
+					if isStartExpr {
+						parsed := decoratorparser.ParseReturnType(paramTypeAsString)
+						// todo: DI here (maybe?)
+						if parsed.ImportedPackage == "fiber" && parsed.Type == "Ctx" {
+							parametersList = append(parametersList, "c")
+							hasAccessToContextObject = true
+							continue
+						}
+					}
+				}
+				if method == "" {
+					//try alternative method
+					parsed := decoratorparser.ParseReturnType(typeAsString)
+					if parsed.ImportedPackage != "" && parsed.Type != "" {
+						fullName := parsed.ImportedPackage + "." + parsed.Prefix + parsed.Type
+						// todo: convert ImportedPackage to a file path
+						requiredPackages = append(requiredPackages, decoratorparser.RequiredPackageEntry{
+							Name: parsed.ImportedPackage,
+							Path: moduleName + "/models/" + parsed.ImportedPackage,
+						})
+						var decParamName = paramName + `_decoded`
+						toJsonDecode = append(toJsonDecode, decoratorparser.JsonDecodeEntry{
+							Type:             fullName,
+							DecodedParamName: decParamName,
+						})
+						autogenComments = append(autogenComments, `@Param `+paramName+` body `+fullName+` true "The `+paramName+`"`)
+						parametersList = append(parametersList, decParamName)
+						continue
+					}
+					panic(errors.New("the type \"" + paramTypeAsString + "\" (addr=" + typeAsString + ") for param " + paramName + " in " + targetFile + " is either not supported or not injected"))
+				}
 				var required = "false"
 				for _, item := range requiredParams {
-					if item == n {
+					if item == paramName {
 						required = "true"
 					}
 				}
@@ -191,8 +236,8 @@ func main() {
 				if inUrl {
 					pType = "path"
 				}
-				parametersList = append(parametersList, `NewArgumentParser(c, "`+pType+`", "`+n+`", `+required+`).`+method+`()`)
-				autogenComments = append(autogenComments, `@Param `+n+` `+pType+` `+typeAsString+` `+required+` "The `+n+`"`)
+				parametersList = append(parametersList, `NewArgumentParser(c, "`+pType+`", "`+paramName+`", `+required+`).`+method+`()`)
+				autogenComments = append(autogenComments, `@Param `+paramName+` `+pType+` `+typeAsString+` `+required+` "The `+paramName+`"`)
 			}
 			for i := range autogenComments {
 				autogenComments[i] = "// " + autogenComments[i]
@@ -206,15 +251,35 @@ func main() {
 			if len(functionName) == 0 {
 				panic(errors.New("bad function name"))
 			}
-			var methodCall = fn.Name.Name + `(` + strings.Join(parametersList, ",") + `)`
+			var methodCall = fn.Name.Name + `(` + strings.Join(parametersList, ", ") + `)`
 			if apiController != nil {
 				methodCall = "New" + apiControllerName + "()." + methodCall
 			}
 			methodCall = packageName + "." + methodCall
+			var beforeMethodCall = ""
+			var afterMethodCall = ""
+			if hasAccessToContextObject {
+				afterMethodCall = `
+		if c.Response().Body() != nil {
+			return nil
+		}`
+			}
+			if len(toJsonDecode) != 0 {
+				for _, item := range toJsonDecode {
+					beforeMethodCall += `
+		var ` + item.DecodedParamName + " " + item.Type + `
+		if err := c.BodyParser(&` + item.DecodedParamName + `); err != nil {
+            return err
+        }
+`
+				}
+			}
 			var template = strings.Join(autogenComments, "\n") + `
 func ` + functionName + `(app *fiber.App) {
 	app.` + httpMethod.HttpMethod + `("` + httpMethod.Url + `", func(c *fiber.Ctx) error {
+		` + beforeMethodCall + `
 		var result = ` + methodCall + `
+		` + afterMethodCall + `
 		return c.JSON(result)
 	})
 }`
@@ -234,14 +299,25 @@ func ` + functionName + `(app *fiber.App) {
 		regStr = append(regStr, "    "+str+"(app)")
 	}
 	var defStr = make([]string, 0)
-	for _, str := range controllerMethodDefinitions {
-		defStr = append(defStr, str)
-	}
+	defStr = append(defStr, controllerMethodDefinitions...)
 	// templates
 	autogenFile = strings.ReplaceAll(autogenFile, "	// [StartupRegistrations]", strings.Join(regStr, "\n"))
 	autogenFile = strings.ReplaceAll(autogenFile, "// [FunctionRegistrations]", strings.Join(defStr, "\n\n"))
-	autogenFile = strings.ReplaceAll(autogenFile, "	// [ImportRegistrations]", `	"project-one/controllers"`)
-	writeTestErr := os.WriteFile(target+"/autogen/autogen_web.go", []byte(autogenFile), 0666)
+	requiredPackages = append(requiredPackages, decoratorparser.RequiredPackageEntry{
+		Name: "controllers",
+		Path: moduleName + "/controllers",
+	})
+	// todo: sort packages alphabetically
+	var packagesToList = make([]string, 0)
+	var added = make(map[string]bool)
+	for _, item := range requiredPackages {
+		if _, exists := added[item.Path]; exists {
+			continue
+		}
+		packagesToList = append(packagesToList, "    "+item.Name+` "`+item.Path+`"`)
+	}
+	autogenFile = strings.ReplaceAll(autogenFile, "	// [ImportRegistrations]", strings.Join(packagesToList, "\n"))
+	writeTestErr := os.WriteFile(target+"autogen/autogen_web.go", []byte(autogenFile), 0666)
 	if writeTestErr != nil {
 		log.Fatal(writeTestErr)
 	}
@@ -250,7 +326,7 @@ func ` + functionName + `(app *fiber.App) {
 	if runtimeBytesErr != nil {
 		log.Fatal(runtimeBytesErr)
 	}
-	writeFileErr := os.WriteFile(target+"/autogen/autogen_web_lib.go", runtimeLibBytes, 0666)
+	writeFileErr := os.WriteFile(target+"autogen/autogen_web_lib.go", runtimeLibBytes, 0666)
 	if writeFileErr != nil {
 		log.Fatal(writeFileErr)
 	}
