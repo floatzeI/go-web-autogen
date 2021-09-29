@@ -2,6 +2,7 @@ package services
 
 import "project-one/models/items"
 
+// @ResolveScoped("IItemsService")
 type ItemsService struct{}
 
 func NewItemsService() IItemsService {

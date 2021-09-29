@@ -14,9 +14,10 @@ type OtherController struct {
 	items services.IItemsService
 }
 
-func NewOtherController() *OtherController {
-	// todo: add services to constructor
-	return &OtherController{}
+func NewOtherController(itemsService services.IItemsService) *OtherController {
+	return &OtherController{
+		items: itemsService,
+	}
 }
 
 // @HttpGet("{itemId}/info")

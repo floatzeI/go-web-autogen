@@ -13,8 +13,6 @@ import (
 func main() {
 	app := fiber.New()
 	app.Static("/", "./public")
-	var registry = autogen_web.AutoGenRegister{}
-
-	registry.Run(app)
+	autogen_web.Run(app)
 	app.Listen(":4012")
 }
