@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"web-autogen/utils"
+
+	"github.com/floatzeI/go-web-autogen/utils"
 )
 
 type HttpMethod struct {

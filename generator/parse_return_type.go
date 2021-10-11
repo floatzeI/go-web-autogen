@@ -3,7 +3,8 @@ package generator
 import (
 	"fmt"
 	"go/ast"
-	"web-autogen/decoratorparser"
+
+	"github.com/floatzeI/go-web-autogen/decoratorparser"
 )
 
 // ParseReturnType returns the return type of the function

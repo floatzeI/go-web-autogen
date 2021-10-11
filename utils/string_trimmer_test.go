@@ -2,7 +2,8 @@ package utils_test
 
 import (
 	"testing"
-	"web-autogen/utils"
+
+	"github.com/floatzeI/go-web-autogen/utils"
 )
 
 func TestStringTimmer(t *testing.T) {

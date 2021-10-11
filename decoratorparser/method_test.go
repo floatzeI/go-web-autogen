@@ -2,7 +2,8 @@ package decoratorparser_test
 
 import (
 	"testing"
-	"web-autogen/decoratorparser"
+
+	"github.com/floatzeI/go-web-autogen/decoratorparser"
 )
 
 func TestParseMethod(t *testing.T) {

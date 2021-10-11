@@ -3,7 +3,8 @@ package decoratorparser
 import (
 	"regexp"
 	"strings"
-	"web-autogen/utils"
+
+	"github.com/floatzeI/go-web-autogen/utils"
 )
 
 var parserRegex = regexp.MustCompile(`@([a-zA-Z]+)(\(?(.+?)\))`)

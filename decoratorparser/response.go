@@ -3,7 +3,8 @@ package decoratorparser
 import (
 	"errors"
 	"strconv"
-	"web-autogen/utils"
+
+	"github.com/floatzeI/go-web-autogen/utils"
 )
 
 type ResponseEntry struct {

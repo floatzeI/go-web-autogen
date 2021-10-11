@@ -11,8 +11,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"web-autogen/decoratorparser"
-	"web-autogen/runtimelib"
+
+	"github.com/floatzeI/go-web-autogen/decoratorparser"
+	"github.com/floatzeI/go-web-autogen/runtimelib"
 
 	"golang.org/x/mod/modfile"
 )
@@ -96,6 +97,9 @@ func Generate(options GenerateOptions) {
 						switch typeSpec := spec.(type) {
 						case *ast.TypeSpec:
 							// todo this might cause issues. see: https://github.com/golang/go/issues/27477
+							if gen.Doc == nil {
+								continue
+							}
 							parsedComments := decoratorparser.New(gen.Doc.List[0].Text, typeSpec.Name.Name, "constructor")
 							decoratorFunctions := parsedComments.GetFunctions()
 							if apiController != nil {

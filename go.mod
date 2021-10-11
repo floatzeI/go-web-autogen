@@ -1,4 +1,4 @@
-module web-autogen
+module github.com/floatzeI/go-web-autogen
 
 go 1.17
 
