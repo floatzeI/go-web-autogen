@@ -66,7 +66,7 @@ func Generate(options GenerateOptions) {
 		Name: "services",
 		Path: moduleName + "/services",
 	})
-	dependencies.AddDependency("IItemsService", "ItemsService", "scoped", "services", "services")
+	dependencies.AddDependency("Users", "Users", "singleton", "services", "services")
 	for _, entry := range controllers {
 		targetFile := target + "controllers/" + entry.Name()
 
@@ -111,10 +111,12 @@ func Generate(options GenerateOptions) {
 								continue
 							}
 							apiControllerName = typeSpec.Name.Name
-							baseUrl = apiController.Arguments[0]
-							fmt.Println("[info] controller baseUrl =", baseUrl)
-							if !strings.HasSuffix(baseUrl, "/") {
-								baseUrl = baseUrl + "/"
+							if len(apiController.Arguments) > 0 {
+								baseUrl = apiController.Arguments[0]
+								fmt.Println("[info] controller baseUrl =", baseUrl)
+								if !strings.HasSuffix(baseUrl, "/") {
+									baseUrl = baseUrl + "/"
+								}
 							}
 
 						}
@@ -249,6 +251,19 @@ func Generate(options GenerateOptions) {
 					var paramName = param.Names[0].Name
 					var paramType = param.Type
 					var parsedType = decoratorparser.ParseReturnType(fmt.Sprintf("%v", paramType))
+					if strings.HasPrefix(parsedType.Type, "0x") {
+						// convert "services.Users" to "users"
+						fullStr := strings.Split(rawFileStr[param.Type.Pos():param.Type.End()-1], ".")
+						if len(fullStr) == 1 {
+							// is not in a different package
+							parsedType = decoratorparser.ParseReturnType(fmt.Sprintf("%v", fullStr[0]))
+						} else {
+							// is packaged
+							parsedType = decoratorparser.ParseReturnType(fmt.Sprintf("%v", fullStr[1]))
+						}
+						// todo: this might cause bugs in the unlikely scenerio that someone creates an interface starting with "0x"...
+						// parsedType = decoratorparser.ParseReturnType(fmt.Sprintf("%v", paramName))
+					}
 					var dep = dependencies.CreateDependencyResolverFunction(parsedType.Type)
 					constructorArgs = append(constructorArgs, dep.FunctionName+"()")
 					fmt.Println("n", paramName, paramType, parsedType)
@@ -316,9 +331,9 @@ func `+item.FunctionName+`() `+fullIType+` {
 		} else {
 			var singletonVarName = `singleton` + item.RealType
 			defStr = append(defStr, `
-var `+singletonVarName+` `+fullIType+` = `+createServiceCall+`
+var `+singletonVarName+` *`+fullIType+` = `+createServiceCall+`
 `+comment+`
-func `+item.FunctionName+`() `+fullIType+` {
+func `+item.FunctionName+`() *`+fullIType+` {
 	return `+singletonVarName+`
 }`)
 		}
