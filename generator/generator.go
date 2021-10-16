@@ -275,7 +275,7 @@ func Generate(options GenerateOptions) {
 			var afterMethodCall = ""
 			if hasAccessToContextObject {
 				afterMethodCall = `
-		if c.Response().Body() != nil {
+		if len(c.Response().Body()) != 0 {
 			return nil
 		}`
 			}
