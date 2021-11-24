@@ -118,7 +118,7 @@ func (p *ArgumentParser) GetUint64() uint64 {
 	if p.rawValue == "" {
 		return 0
 	}
-	parse, parseErr := strconv.ParseUint(p.rawValue, 10, 32)
+	parse, parseErr := strconv.ParseUint(p.rawValue, 10, 64)
 
 	if parseErr != nil {
 		if p.required {
